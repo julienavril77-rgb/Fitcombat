@@ -1,0 +1,18 @@
+COMBATFIT — VERSION ANDROID (PWA)
+
+Contenu :
+- index.html : application CombatFit
+- manifest.webmanifest : nom, icône et mode d'affichage de l'application
+- service-worker.js : mise en cache pour l'utilisation hors ligne
+- icon-192.png / icon-512.png : icônes Android
+
+INSTALLATION SUR ANDROID
+1. Héberger le contenu de ce dossier sur un site HTTPS (par exemple GitHub Pages ou un hébergement web).
+2. Ouvrir l'adresse HTTPS dans Chrome sur le téléphone Android.
+3. Ouvrir le menu ⋮ puis choisir « Installer l'application » ou « Ajouter à l'écran d'accueil ».
+4. Lancer CombatFit depuis l'icône créée.
+
+IMPORTANT
+- L'installation PWA nécessite une adresse HTTPS (ou localhost). Ouvrir index.html directement depuis le gestionnaire de fichiers ne permet généralement pas l'installation.
+- Les données d'entraînement sont stockées localement dans le navigateur/appareil. Elles ne sont pas synchronisées automatiquement entre appareils. Effacer les données du navigateur peut les supprimer : prévoir des sauvegardes si l'application propose cette fonction.
+- Ce paquet est une application web installable, pas un fichier APK et pas une publication Google Play.
