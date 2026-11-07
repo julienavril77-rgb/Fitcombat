@@ -174,12 +174,15 @@ for (const session of sessions) {
 let state={history:[],goals:{weekly:4,monthly:16,minutes:180},timer:{duration:120,endAt:null,running:false},activeSession:"force",activePage:"accueil",draft:{},location:"basicfit",homeEquipment:["Haltères","Élastiques","Barre de traction","Sangles / anneaux","Poids du corps"]};
 function load(){try{const d=JSON.parse(localStorage.getItem("combatfit-v1")||"{}");state={...state,...d,goals:{...state.goals,...d.goals},timer:{...state.timer,...d.timer},homeEquipment:d.homeEquipment||state.homeEquipment,location:d.location||state.location}}catch(e){}}
 function persist(){localStorage.setItem("combatfit-v1",JSON.stringify(state));document.getElementById("saveStatus").textContent="● Sauvegardé sur cet appareil"}
+function nativeTimerStart(){try{if(window.CombatFitNative&&state.timer.running)window.CombatFitNative.startTimer(Math.max(1,Math.ceil((state.timer.endAt-Date.now())/1000)));}catch(e){console.warn("Service Android indisponible",e)}}
+function nativeTimerStop(){try{if(window.CombatFitNative)window.CombatFitNative.stopTimer();}catch(e){console.warn("Arrêt du service Android impossible",e)}}
+function syncNativeTimer(){try{if(!window.CombatFitNative)return;const running=window.CombatFitNative.isTimerRunning();if(running){const endAt=Number(window.CombatFitNative.getEndAt())||0;if(endAt>0){state.timer.running=true;state.timer.endAt=endAt;state.timer.duration=Math.max(0,Math.ceil((endAt-Date.now())/1000));}}else{const remaining=Math.max(0,Number(window.CombatFitNative.getRemainingSeconds())||0);state.timer.running=false;state.timer.endAt=null;state.timer.duration=remaining;}persist();renderTimer();}catch(e){console.warn("Synchronisation du minuteur impossible",e)}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function showToast(s){const t=document.getElementById("toast");t.textContent=s;t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),2200)}
 function showPage(page){state.activePage=page;document.querySelectorAll("main[id^=page-]").forEach(e=>e.classList.toggle("hidden",e.id!=="page-"+page));document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));persist();if(page==="progression"){renderGoals();populateChart()}if(page==="historique")renderHistory();if(page==="glossaire")renderGlossary();if(page==="seances"){renderSessionList();setSessionChooserVisibility(!!state.activeSession);}if(page==="accueil")renderHome()}
 function formatDuration(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60),sec=s%60;return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`}
-function setTimer(sec){sec=Math.max(1,Math.min(7200,Number(sec)||120));state.timer.duration=sec;state.timer.running=false;state.timer.endAt=null;persist();renderTimer();if(document.getElementById("restLabel"))document.getElementById("restLabel").textContent=formatDuration(sec);if(document.getElementById("restRange"))document.getElementById("restRange").value=Math.min(300,Math.max(30,sec))}
-function toggleTimer(){if(state.timer.running){state.timer.duration=Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000));state.timer.running=false;state.timer.endAt=null}else{if(state.timer.duration<=0)state.timer.duration=120;state.timer.endAt=Date.now()+state.timer.duration*1000;state.timer.running=true}persist();renderTimer()}
+function setTimer(sec){nativeTimerStop();sec=Math.max(1,Math.min(7200,Number(sec)||120));state.timer.duration=sec;state.timer.running=false;state.timer.endAt=null;persist();renderTimer();if(document.getElementById("restLabel"))document.getElementById("restLabel").textContent=formatDuration(sec);if(document.getElementById("restRange"))document.getElementById("restRange").value=Math.min(300,Math.max(30,sec))}
+function toggleTimer(){if(state.timer.running){state.timer.duration=Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000));state.timer.running=false;state.timer.endAt=null}else{if(state.timer.duration<=0)state.timer.duration=120;state.timer.endAt=Date.now()+state.timer.duration*1000;state.timer.running=true}persist();if(state.timer.running)nativeTimerStart();else nativeTimerStop();renderTimer()}
 function startFloatingTimer(){
   // Le bouton flottant fonctionne comme un interrupteur : démarrer 2 minutes / arrêter.
   if (state.timer.running) {
@@ -190,6 +193,7 @@ function startFloatingTimer(){
     state.timer.running = false;
     state.timer.endAt = null;
     try { persist(); } catch(e) { /* l'arrêt fonctionne même si le stockage est bloqué */ }
+    nativeTimerStop();
     renderTimer();
     showToast("Minuteur arrêté");
     return;
@@ -200,10 +204,11 @@ function startFloatingTimer(){
   state.timer.running = true;
   sounded = false;
   try { persist(); } catch(e) { /* le compte à rebours fonctionne même si le stockage est bloqué */ }
+  nativeTimerStart();
   renderTimer();
   showToast("Minuteur lancé · 02:00");
 }
-function resetTimer(){state.timer.running=false;state.timer.endAt=null;state.timer.duration=Number(document.getElementById("restRange")?.value||120);persist();renderTimer()}
+function resetTimer(){nativeTimerStop();state.timer.running=false;state.timer.endAt=null;state.timer.duration=Number(document.getElementById("restRange")?.value||120);persist();renderTimer()}
 let sounded=false;function tick(){if(state.timer.running){let left=Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000));state.timer.duration=left;if(left===0){state.timer.running=false;state.timer.endAt=null;if(!sounded){sounded=true;testSound();showToast("Repos terminé !");if("Notification"in window&&Notification.permission==="granted")new Notification("CombatFit",{body:"Temps de repos terminé."})}persist()}else sounded=false}renderTimer()}
 function renderTimer(){let left=state.timer.running?Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000)):state.timer.duration;let txt=formatDuration(left),cap=state.timer.running?"Repos en cours":left===0?"Temps écoulé":"Prêt à démarrer";const floating=document.getElementById("floatingTimerDisplay");if(floating)floating.textContent=txt;["timerDisplay","timerDisplay2"].forEach(id=>{let e=document.getElementById(id);if(e)e.textContent=txt});["timerCaption","timerCaption2"].forEach(id=>{let e=document.getElementById(id);if(e)e.textContent=cap});["timerStartBtn","timerStartBtn2"].forEach(id=>{let e=document.getElementById(id);if(e)e.textContent=state.timer.running?"Ⅱ Pause":"▶ Démarrer"});["timerRing","timerRing2"].forEach(id=>{let e=document.getElementById(id);if(e)e.style.setProperty("--progress",`${state.timer.duration?100*(1-left/state.timer.duration):0}%`)})}
 function testSound(){try{const C=window.AudioContext||window.webkitAudioContext;if(C){const c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.12;o.start();o.stop(c.currentTime+.25)}}catch(e){}}
@@ -252,7 +257,7 @@ function renderGlossary(){let q=(document.getElementById("glossarySearch")?.valu
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="combatfit-sauvegarde.json";a.click();URL.revokeObjectURL(url)}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.history))throw Error();state={...state,...d};persist();renderHome();renderHistory();showToast("Sauvegarde importée")}catch(err){alert("Fichier de sauvegarde invalide.")}};r.readAsText(f);e.target.value=""}
 load();renderHome();renderSessionList();renderEquipmentSettings();renderTimer();
-setInterval(tick,500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});window.addEventListener("beforeunload",persist);
+setInterval(tick,500);document.addEventListener("visibilitychange",()=>{if(!document.hidden){syncNativeTimer();tick()}});window.addEventListener("pageshow",syncNativeTimer);window.addEventListener("beforeunload",persist);
 function renderSessionList(){document.getElementById("sessionList").innerHTML=sessions.map((s,i)=>`<button class="session" onclick="openSession('${s.id}')"><span class="num">${String(i+1).padStart(2,"0")}</span><span><strong>${esc(s.name)}</strong><small>${esc(s.tag)}</small></span><span class="arrow">›</span></button>`).join("")}
 </script>
 <script>if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {})); }</script>
