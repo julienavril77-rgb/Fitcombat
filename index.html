@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-<button class="floating-timer" type="button" onclick="startFloatingTimer()" aria-label="Démarrer le minuteur" title="Démarrer le minuteur"><span class="clock" aria-hidden="true">⏰</span><span class="float-time" id="floatingTimerDisplay">02:00</span></button>
+<button class="floating-timer" type="button" onclick="startFloatingTimer()" aria-label="Démarrer ou arrêter le minuteur" title="Démarrer / arrêter le minuteur"><span class="clock" aria-hidden="true">⏰</span><span class="float-time" id="floatingTimerDisplay">02:00</span></button>
 <div class="app">
 <header class="top"><div class="brand"><div class="logo">CF</div><div><div class="eyebrow">Préparation physique combat</div><h1>CombatFit</h1><p>Ton entraînement. Ta progression.</p></div></div><div class="status" id="saveStatus">● Données enregistrées sur cet appareil</div></header>
 <section class="hero"><div><div class="eyebrow">TABLEAU DE BORD</div><h2>Construis ta force.<br>Exprime ta puissance.</h2><p>Un carnet d’entraînement simple pour suivre le programme Sports de combat, noter tes performances et progresser séance après séance.</p><button class="primary" onclick="showPage('seances')">▶ Commencer une séance</button></div><div class="hero-stats"><div class="stat"><b id="statSessions">0</b><span>Séances terminées</span></div><div class="stat"><b id="statStreak">0</b><span>Ce mois-ci</span></div><div class="stat"><b id="statMinutes">0</b><span>Minutes suivies</span></div><div class="stat"><b id="statExercises">0</b><span>Exercices consignés</span></div></div></section>
@@ -181,15 +181,27 @@ function formatDuration(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60),
 function setTimer(sec){sec=Math.max(1,Math.min(7200,Number(sec)||120));state.timer.duration=sec;state.timer.running=false;state.timer.endAt=null;persist();renderTimer();if(document.getElementById("restLabel"))document.getElementById("restLabel").textContent=formatDuration(sec);if(document.getElementById("restRange"))document.getElementById("restRange").value=Math.min(300,Math.max(30,sec))}
 function toggleTimer(){if(state.timer.running){state.timer.duration=Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000));state.timer.running=false;state.timer.endAt=null}else{if(state.timer.duration<=0)state.timer.duration=120;state.timer.endAt=Date.now()+state.timer.duration*1000;state.timer.running=true}persist();renderTimer()}
 function startFloatingTimer(){
-  // Le bouton flottant lance directement le compte à rebours, sans changer de page.
-  const remaining = state.timer.running && state.timer.endAt ? Math.ceil((state.timer.endAt-Date.now())/1000) : 0;
-  if (remaining > 0) { renderTimer(); showToast("Minuteur déjà lancé · "+formatDuration(remaining)); return; }
-  if (!Number.isFinite(Number(state.timer.duration)) || Number(state.timer.duration) <= 0) state.timer.duration = 120;
-  state.timer.endAt = Date.now() + Number(state.timer.duration) * 1000;
+  // Le bouton flottant fonctionne comme un interrupteur : démarrer 2 minutes / arrêter.
+  if (state.timer.running) {
+    const remaining = state.timer.endAt
+      ? Math.max(0, Math.ceil((state.timer.endAt-Date.now())/1000))
+      : 0;
+    state.timer.duration = remaining;
+    state.timer.running = false;
+    state.timer.endAt = null;
+    try { persist(); } catch(e) { /* l'arrêt fonctionne même si le stockage est bloqué */ }
+    renderTimer();
+    showToast("Minuteur arrêté");
+    return;
+  }
+
+  state.timer.duration = 120;
+  state.timer.endAt = Date.now() + 120000;
   state.timer.running = true;
+  sounded = false;
   try { persist(); } catch(e) { /* le compte à rebours fonctionne même si le stockage est bloqué */ }
   renderTimer();
-  showToast("Minuteur lancé · "+formatDuration(state.timer.duration));
+  showToast("Minuteur lancé · 02:00");
 }
 function resetTimer(){state.timer.running=false;state.timer.endAt=null;state.timer.duration=Number(document.getElementById("restRange")?.value||120);persist();renderTimer()}
 let sounded=false;function tick(){if(state.timer.running){let left=Math.max(0,Math.ceil((state.timer.endAt-Date.now())/1000));state.timer.duration=left;if(left===0){state.timer.running=false;state.timer.endAt=null;if(!sounded){sounded=true;testSound();showToast("Repos terminé !");if("Notification"in window&&Notification.permission==="granted")new Notification("CombatFit",{body:"Temps de repos terminé."})}persist()}else sounded=false}renderTimer()}
@@ -240,8 +252,6 @@ function renderGlossary(){let q=(document.getElementById("glossarySearch")?.valu
 function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="combatfit-sauvegarde.json";a.click();URL.revokeObjectURL(url)}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.history))throw Error();state={...state,...d};persist();renderHome();renderHistory();showToast("Sauvegarde importée")}catch(err){alert("Fichier de sauvegarde invalide.")}};r.readAsText(f);e.target.value=""}
 load();renderHome();renderSessionList();renderEquipmentSettings();renderTimer();
-// Délégation explicite du clic, en plus du onclick du bouton, pour fiabiliser le déclenchement.
-document.addEventListener("click",function(event){const button=event.target.closest(".floating-timer");if(!button)return;event.preventDefault();startFloatingTimer();});
 setInterval(tick,500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});window.addEventListener("beforeunload",persist);
 function renderSessionList(){document.getElementById("sessionList").innerHTML=sessions.map((s,i)=>`<button class="session" onclick="openSession('${s.id}')"><span class="num">${String(i+1).padStart(2,"0")}</span><span><strong>${esc(s.name)}</strong><small>${esc(s.tag)}</small></span><span class="arrow">›</span></button>`).join("")}
 </script>
