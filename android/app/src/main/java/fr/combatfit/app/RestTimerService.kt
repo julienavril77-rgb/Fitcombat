@@ -52,7 +52,7 @@ class RestTimerService : Service() {
             .setContentText("Temps restant")
             .setOnlyAlertOnce(true)
             .setOngoing(true)
-            .setCategory(NotificationCompat.CATEGORY_STOP)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .addAction(android.R.drawable.ic_media_pause, "Arrêter", stopIntent)
         if (Build.VERSION.SDK_INT >= 24) builder.setWhen(endAt).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(true)
         return builder.build()
