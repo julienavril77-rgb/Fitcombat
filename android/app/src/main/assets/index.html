@@ -161,6 +161,46 @@ button:focus-visible {
 button.primary:hover {
   background: #C62828;
 }
+   
+/* ==================================
+   CORRECTIONS MOBILE COMBAT FORGE
+   ================================== */
+
+@media (max-width: 720px) {
+  /* Décaler l'en-tête sous la barre d'état Android */
+  .app {
+    padding-top: max(34px, calc(12px + env(safe-area-inset-top, 0px)));
+  }
+
+  /* Minuteur flottant aux couleurs Combat Forge */
+  .floating-timer {
+    top: auto;
+    right: 12px;
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    transform: none;
+
+    background: #171719;
+    color: #F5F5F5;
+    border: 1px solid #E53935;
+    box-shadow: 0 4px 16px #0009;
+
+    padding: 8px 11px;
+    gap: 7px;
+  }
+
+  /* Horloge plus discrète */
+  .floating-timer .clock {
+    font-size: 20px;
+    filter: grayscale(1) brightness(1.5);
+  }
+
+  .floating-timer .float-time {
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 850;
+  }
+}
+
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png">
