@@ -201,6 +201,10 @@ button.primary:hover {
   }
 }
 
+
+/* Minuteur flottant déplaçable */
+.floating-timer{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;will-change:left,top}
+.floating-timer.is-dragging{cursor:grabbing;transition:none}
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png">
@@ -209,7 +213,7 @@ button.primary:hover {
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-<button class="floating-timer" type="button" onclick="startFloatingTimer()" aria-label="Démarrer ou arrêter le minuteur" title="Démarrer / arrêter le minuteur"><span class="clock" aria-hidden="true">⏰</span><span class="float-time" id="floatingTimerDisplay">02:00</span></button>
+<button class="floating-timer" type="button" aria-label="Déplacer le minuteur ; toucher pour démarrer ou arrêter" title="Démarrer / arrêter le minuteur"><span class="clock" aria-hidden="true">⏰</span><span class="float-time" id="floatingTimerDisplay">02:00</span></button>
 <div class="app">
 <header class="top">
   <div class="brand">
@@ -457,12 +461,52 @@ function viewHistory(id){let h=state.history.find(x=>x.id===id);if(!h)return;doc
 function deleteHistory(id){if(!confirm("Supprimer cette séance de l’historique ?"))return;state.history=state.history.filter(h=>h.id!==id);persist();closeModal();renderHistory();renderHome();showToast("Séance supprimée")}
 function clearHistory(){if(!confirm("Effacer tout l’historique ? Pense à exporter une sauvegarde avant."))return;state.history=[];persist();renderHistory();renderHome();populateChart();showToast("Historique effacé")}
 function renderGlossary(){let q=(document.getElementById("glossarySearch")?.value||"").toLowerCase();let arr=glossary.filter(x=>(x[0]+" "+x[1]).toLowerCase().includes(q));document.getElementById("glossaryContent").innerHTML=arr.map(x=>`<div class="definition"><strong>${esc(x[0])}</strong><p>${esc(x[1])}</p></div>`).join("")||'<div class="empty">Aucun terme trouvé.</div>'}
-function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="combat-forge-sauvegarde.json";a.click();URL.revokeObjectURL(url)}
+function exportData(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="combatfit-sauvegarde.json";a.click();URL.revokeObjectURL(url)}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.history))throw Error();state={...state,...d};persist();renderHome();renderHistory();showToast("Sauvegarde importée")}catch(err){alert("Fichier de sauvegarde invalide.")}};r.readAsText(f);e.target.value=""}
 load();renderHome();renderSessionList();renderEquipmentSettings();renderTimer();
 setInterval(tick,500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)tick()});window.addEventListener("beforeunload",persist);
 function renderSessionList(){document.getElementById("sessionList").innerHTML=sessions.map((s,i)=>`<button class="session" onclick="openSession('${s.id}')"><span class="num">${String(i+1).padStart(2,"0")}</span><span><strong>${esc(s.name)}</strong><small>${esc(s.tag)}</small></span><span class="arrow">›</span></button>`).join("")}
 </script>
 <script>if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {})); }</script>
+
+<script>
+(function(){
+  const timer = document.querySelector('.floating-timer');
+  if (!timer) return;
+  let startX=0, startY=0, originX=0, originY=0, moved=false, active=false;
+  const key='combatForgeTimerPosition';
+  function clamp(v,min,max){return Math.min(Math.max(v,min),Math.max(min,max));}
+  function place(x,y,save){
+    const maxX=window.innerWidth-timer.offsetWidth;
+    const maxY=window.innerHeight-timer.offsetHeight;
+    x=clamp(x,4,maxX-4); y=clamp(y,4,maxY-4);
+    timer.style.left=x+'px'; timer.style.top=y+'px';
+    timer.style.right='auto'; timer.style.bottom='auto'; timer.style.transform='none';
+    if(save){try{localStorage.setItem(key,JSON.stringify({x,y}));}catch(e){}}
+  }
+  try{const p=JSON.parse(localStorage.getItem(key)||'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))requestAnimationFrame(()=>place(p.x,p.y,false));}catch(e){}
+  timer.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    const r=timer.getBoundingClientRect();
+    active=true;moved=false;startX=e.clientX;startY=e.clientY;originX=r.left;originY=r.top;
+    try{timer.setPointerCapture(e.pointerId);}catch(err){}
+  });
+  timer.addEventListener('pointermove',e=>{
+    if(!active)return;
+    const dx=e.clientX-startX,dy=e.clientY-startY;
+    if(!moved&&Math.hypot(dx,dy)<6)return;
+    moved=true;timer.classList.add('is-dragging');place(originX+dx,originY+dy,false);
+    e.preventDefault();
+  });
+  function finish(){if(!active)return;active=false;timer.classList.remove('is-dragging');if(moved){const r=timer.getBoundingClientRect();place(r.left,r.top,true);}}
+  timer.addEventListener('pointerup',finish);timer.addEventListener('pointercancel',finish);
+  timer.addEventListener('click',e=>{
+    if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;return;}
+    startFloatingTimer();
+  });
+  window.addEventListener('resize',()=>{const r=timer.getBoundingClientRect();if(timer.style.left)place(r.left,r.top,true);});
+})();
+</script>
+
 </body>
 </html>
