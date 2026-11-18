@@ -48,7 +48,7 @@ class RestTimerService : Service() {
         val stopIntent = PendingIntent.getService(this, 10, Intent(this, RestTimerService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val builder = NotificationCompat.Builder(this, CHANNEL_RUNNING)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("CombatFit · Repos en cours")
+            .setContentTitle("Combat Forge · Repos en cours")
             .setContentText("Temps restant")
             .setOnlyAlertOnce(true)
             .setOngoing(true)
@@ -75,7 +75,7 @@ class RestTimerService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         val done = NotificationCompat.Builder(this, CHANNEL_DONE)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("CombatFit · Repos terminé")
+            .setContentTitle("Combat Forge · Repos terminé")
             .setContentText("Tu peux reprendre ton entraînement.")
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -97,7 +97,7 @@ class RestTimerService : Service() {
     private fun acquireWakeLock() {
         if (wakeLock?.isHeld == true) return
         val pm = getSystemService(POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CombatFit:RestTimer")
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CombatForge:RestTimer")
         wakeLock?.acquire(2 * 60 * 60 * 1000L)
     }
     private fun releaseWakeLock() { try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}; wakeLock = null }
